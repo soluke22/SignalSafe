@@ -139,3 +139,7 @@ Possible funding paths include:
 - add partner resource links
 - run pilots with libraries/senior centers/workforce programs
 - collect user feedback from target population
+
+Hosted prototype: <link>
+Demo video: <link>
+Optional AI marketing video: <link>
