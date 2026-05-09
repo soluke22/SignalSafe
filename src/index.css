@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", "Segoe UI", Roboto, sans-serif;
+  --color-slate-900: #0f172a;
+  --color-slate-800: #1e293b;
+  --color-slate-700: #334155;
+  --color-slate-600: #475569;
+  --color-slate-500: #64748b;
+  --color-slate-400: #94a3b8;
+  --color-slate-200: #e2e8f0;
+  --color-slate-100: #f1f5f9;
+  --color-slate-50: #f8fafc;
+}
+
+body {
+  background-color: #F4F7FA;
+}
+
+.shadow-sleek {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
+}
+
+/* Theme overrides for High Contrast */
+.grayscale.contrast-125 button {
+  border-width: 2px !important;
+}
+
+.grayscale.contrast-125 input, .grayscale.contrast-125 textarea {
+  border-color: #000 !important;
+}

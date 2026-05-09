@@ -1,0 +1,13 @@
+{
+  "name": "SignalSafe",
+  "description": "A plain-language safety translator for suspicious official-looking messages, helping users identify scams and take safe next steps.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "AI Message Analysis",
+    "OCR for Screenshots",
+    "Plain-Language Translation",
+    "Safety Verification Scripts"
+  ]
+}
