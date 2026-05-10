@@ -94,6 +94,23 @@ const RiskBadge = ({ level, language }: { level: RiskLevel, language: 'en' | 'es
 };
 
 export default function App() {
+  const safeStorage = {
+    get(key: string) {
+      try {
+        return localStorage.getItem(key);
+      } catch {
+        return null;
+      }
+    },
+    set(key: string, value: string) {
+      try {
+        localStorage.setItem(key, value);
+      } catch {
+        // Ignore storage write failures on restricted/private browsers.
+      }
+    },
+  };
+
   const [inputText, setInputText] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
@@ -101,7 +118,7 @@ export default function App() {
   const [view, setView] = useState<'input' | 'result' | 'history' | 'settings'>('input');
   const [error, setError] = useState<string | null>(null);
   const [settings, setSettings] = useState<UserSettings>(() => {
-    const saved = localStorage.getItem('signalsafe_settings');
+    const saved = safeStorage.get('signalsafe_settings');
     return saved ? JSON.parse(saved) : {
       language: 'en',
       appearance: 'system',
@@ -114,11 +131,11 @@ export default function App() {
   });
 
   useEffect(() => {
-    localStorage.setItem('signalsafe_settings', JSON.stringify(settings));
+    safeStorage.set('signalsafe_settings', JSON.stringify(settings));
   }, [settings]);
 
   useEffect(() => {
-    const saved = localStorage.getItem('signalsafe_results');
+    const saved = safeStorage.get('signalsafe_results');
     if (saved) setSavedAnalyses(JSON.parse(saved));
   }, []);
 
@@ -131,13 +148,13 @@ export default function App() {
     };
     const updated = [newSaved, ...savedAnalyses];
     setSavedAnalyses(updated);
-    localStorage.setItem('signalsafe_results', JSON.stringify(updated));
+    safeStorage.set('signalsafe_results', JSON.stringify(updated));
   };
 
   const deleteSaved = (id: string) => {
     const updated = savedAnalyses.filter(a => a.id !== id);
     setSavedAnalyses(updated);
-    localStorage.setItem('signalsafe_results', JSON.stringify(updated));
+    safeStorage.set('signalsafe_results', JSON.stringify(updated));
   };
 
   const handleTextAnalysis = async () => {
@@ -164,16 +181,18 @@ export default function App() {
     setError(null);
     
     try {
-      const reader = new FileReader();
-      reader.onload = async (event) => {
-        const base64 = (event.target?.result as string).split(',')[1];
-        const res = await analyzeImage(base64, selectedFile.type, settings);
-        setResult(res);
-        saveResult(res);
-        setView('result');
-        if (settings.readAloud) speakResult(res);
-      };
-      reader.readAsDataURL(selectedFile);
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (event) => resolve(event.target?.result as string);
+        reader.onerror = () => reject(new Error('Failed to read image file'));
+        reader.readAsDataURL(selectedFile);
+      });
+      const base64 = dataUrl.split(',')[1];
+      const res = await analyzeImage(base64, selectedFile.type, settings);
+      setResult(res);
+      saveResult(res);
+      setView('result');
+      if (settings.readAloud) speakResult(res);
     } catch (err) {
       setError("Image analysis failed.");
     } finally {
@@ -182,7 +201,7 @@ export default function App() {
   };
 
   const speakResult = (res: AnalysisResult) => {
-    if (!window.speechSynthesis) return;
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
     const msg = new SpeechSynthesisUtterance();
     const riskLabels = {
       en: { low: "low", medium: "medium", high: "high", risk: "risk" },
@@ -209,6 +228,10 @@ export default function App() {
   const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('light');
 
   useEffect(() => {
+    if (typeof window === 'undefined' || !('matchMedia' in window)) {
+      setResolvedTheme('light');
+      return;
+    }
     if (settings.appearance === 'system') {
       const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
       setResolvedTheme(isDark ? 'dark' : 'light');
@@ -258,7 +281,7 @@ export default function App() {
             </div>
             <div className="flex gap-2">
               {view !== 'input' && (
-                <button onClick={() => setView('input')} className={`p-1.5 rounded-full transition-colors ${resolvedTheme === 'dark' ? 'bg-slate-800 text-slate-400' : 'bg-slate-100 text-slate-500'}`}>
+                <button aria-label={settings.language === 'es' ? 'Cerrar' : 'Close'} onClick={() => setView('input')} className={`p-1.5 rounded-full transition-colors ${resolvedTheme === 'dark' ? 'bg-slate-800 text-slate-400' : 'bg-slate-100 text-slate-500'}`}>
                   <X size={14} />
                 </button>
               )}
@@ -314,7 +337,7 @@ export default function App() {
                     }`}>
                       <Camera className={`transition-colors mb-1 ${resolvedTheme === 'dark' ? 'text-slate-600 group-hover:text-blue-500' : 'text-slate-300 group-hover:text-blue-500'}`} size={20} />
                       <span className={`text-[10px] font-black uppercase transition-colors ${resolvedTheme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>{settings.language === 'es' ? 'Subir captura de pantalla' : 'Upload Screenshot'}</span>
-                      <input type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
+                      <input aria-label={settings.language === 'es' ? 'Subir captura de pantalla' : 'Upload screenshot'} type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
                     </label>
                   </div>
                 </motion.div>
@@ -400,8 +423,8 @@ export default function App() {
                             <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">{new Date(item.timestamp).toLocaleDateString()}</span>
                           </div>
                           <div className="flex gap-1 items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onClick={() => {setResult(item); setView('result');}} className="p-2 text-blue-500"><ChevronRight size={16} /></button>
-                            <button onClick={() => deleteSaved(item.id)} className={`p-2 transition-colors ${resolvedTheme === 'dark' ? 'text-slate-600 hover:text-red-400' : 'text-slate-300 hover:text-red-500'}`}><Trash2 size={14} /></button>
+                            <button aria-label={settings.language === 'es' ? 'Ver resultado guardado' : 'View saved result'} onClick={() => {setResult(item); setView('result');}} className="p-2 text-blue-500"><ChevronRight size={16} /></button>
+                            <button aria-label={settings.language === 'es' ? 'Eliminar resultado guardado' : 'Delete saved result'} onClick={() => deleteSaved(item.id)} className={`p-2 transition-colors ${resolvedTheme === 'dark' ? 'text-slate-600 hover:text-red-400' : 'text-slate-300 hover:text-red-500'}`}><Trash2 size={14} /></button>
                           </div>
                         </div>
                       ))}
@@ -497,7 +520,7 @@ export default function App() {
                           onClick={() => setSettings({...settings, readAloud: !settings.readAloud})}
                           className={`w-12 h-6 rounded-full transition-colors relative ${settings.readAloud ? 'bg-blue-500' : 'bg-slate-600'}`}
                         >
-                          <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${settings.readAloud ? 'left-7' : 'left-1'}`} / >
+                          <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${settings.readAloud ? 'left-7' : 'left-1'}`} />
                         </button>
                       </div>
 
@@ -600,7 +623,7 @@ export default function App() {
       {error && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-48px)] max-w-sm bg-red-600 text-white p-4 rounded-2xl shadow-2xl flex items-center justify-between z-50">
           <p className="text-xs font-bold uppercase tracking-tight">{error}</p>
-          <button onClick={() => setError(null)}><X size={16} /></button>
+          <button aria-label={settings.language === 'es' ? 'Cerrar error' : 'Dismiss error'} onClick={() => setError(null)}><X size={16} /></button>
         </div>
       )}
     </div>

@@ -83,7 +83,7 @@ Current accessibility and inclusion features include:
    npm install
    ```
 3. Copy `.env.example` to `.env.local`.
-4. Add your Gemini API key to `.env.local` as `GEMINI_API_KEY`.
+4. Add your Gemini API key to `.env.local` as `GEMINI_API_KEY` (server-side only via `/api/analyze`).
 5. Start the development server:
    ```bash
    npm run dev
@@ -98,6 +98,18 @@ GEMINI_API_KEY=
 ```
 
 API keys and secrets must stay out of the public repo.
+
+## Vercel Hosting (Secure Key Handling)
+
+- SignalSafe is deployed as a Vite frontend with a Vercel Serverless Function at `/api/analyze`.
+- `GEMINI_API_KEY` must be configured in Vercel Project Settings -> Environment Variables.
+- Do not expose Gemini keys through `VITE_` variables, `import.meta.env`, or Vite `define` in client code.
+- The browser calls `/api/analyze`; only the serverless function reads `process.env.GEMINI_API_KEY`.
+
+## Local Development Notes
+
+- `npm run dev` runs the Vite app.
+- To test end-to-end serverless behavior locally, use Vercel dev tooling (`vercel dev`) so `/api/analyze` runs with server env vars.
 
 ## Sustainability
 
