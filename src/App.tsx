@@ -151,7 +151,12 @@ export default function App() {
       setView('result');
       if (settings.readAloud) speakResult(res);
     } catch (err) {
-      setError("Analysis failed. Please check connection.");
+      if (err instanceof Error) {
+        console.error('Text analysis failed', { message: err.message });
+      } else {
+        console.error('Text analysis failed', { message: 'Unknown error' });
+      }
+      setError("Analysis failed. Try again or use demo mode.");
     } finally {
       setIsAnalyzing(false);
     }
@@ -175,7 +180,12 @@ export default function App() {
       };
       reader.readAsDataURL(selectedFile);
     } catch (err) {
-      setError("Image analysis failed.");
+      if (err instanceof Error) {
+        console.error('Image analysis failed', { message: err.message });
+      } else {
+        console.error('Image analysis failed', { message: 'Unknown error' });
+      }
+      setError("Analysis failed. Try again or use demo mode.");
     } finally {
       setIsAnalyzing(false);
     }
