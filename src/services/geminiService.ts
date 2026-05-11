@@ -1,10 +1,19 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { AnalysisResult, UserSettings } from "../types";
 
-// Initialize Gemini in the frontend as per skill guidelines
-const ai = new GoogleGenAI({ 
-  apiKey: process.env.GEMINI_API_KEY 
-});
+// Lazy initialize to prevent "API Key must be set" error on load in environments without the key
+let aiInstance: GoogleGenAI | null = null;
+
+const getAI = () => {
+  if (!aiInstance) {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error("The AI service is missing its security key. If you are the developer, please ensure GEMINI_API_KEY is set in your environment variables. In the AI Studio preview, this key is provided automatically.");
+    }
+    aiInstance = new GoogleGenAI({ apiKey });
+  }
+  return aiInstance;
+};
 
 const RESPONSE_SCHEMA = {
   type: Type.OBJECT,
@@ -38,10 +47,7 @@ Return results in the specified JSON format.`;
 
 export async function analyzeMessage(text: string, settings?: UserSettings): Promise<AnalysisResult> {
   try {
-    if (!process.env.GEMINI_API_KEY) {
-      throw new Error("Gemini API key is not configured in the environment.");
-    }
-
+    const ai = getAI();
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: `Analyze this message text: "${text}"`,
@@ -53,29 +59,31 @@ export async function analyzeMessage(text: string, settings?: UserSettings): Pro
     });
 
     if (!response.text) {
-      throw new Error("No response from AI");
+      throw new Error("No response from AI service.");
     }
 
     return JSON.parse(response.text.trim()) as AnalysisResult;
   } catch (error: any) {
     console.error("Gemini analyzeMessage failed:", error);
-    // User friendly error handling
-    if (error.message?.includes("429") || error.message?.includes("RESOURCE_EXHAUSTED")) {
+    
+    // Handle specific errors for better UX
+    if (error.message?.includes("429") || error.message?.includes("RESOURCE_EXHAUSTED") || error.message?.includes("Quota")) {
       throw new Error("The AI service is currently busy or over quota. Please try again in a few minutes.");
     }
-    if (error.message?.includes("API key not valid")) {
-       throw new Error("The API key is invalid. Please ensure GEMINI_API_KEY is correctly set in your environment.");
+    
+    if (error.message?.includes("API Key") || error.message?.includes("invalid API key")) {
+        throw new Error("The API key is invalid or missing. If you're on Vercel, check your Environment Variables.");
     }
+
     throw new Error(error.message || "Failed to analyze message");
   }
 }
 
 export async function analyzeImage(base64Data: string, mimeType: string, settings?: UserSettings): Promise<AnalysisResult> {
   try {
-    if (!process.env.GEMINI_API_KEY) {
-      throw new Error("Gemini API key is not configured in the environment.");
-    }
-
+    const ai = getAI();
+    
+    // Extract base64 part if it contains data:image/...;base64,
     const cleanBase64 = base64Data.includes('base64,') 
       ? base64Data.split('base64,')[1] 
       : base64Data;
@@ -85,7 +93,7 @@ export async function analyzeImage(base64Data: string, mimeType: string, setting
       contents: {
         parts: [
           { inlineData: { data: cleanBase64, mimeType } },
-          { text: "Analyze this screenshot for suspicious activity and return the safety report." }
+          { text: "Analyze this screenshot for suspicious activity and return the safety report in JSON format." }
         ]
       },
       config: {
@@ -96,13 +104,13 @@ export async function analyzeImage(base64Data: string, mimeType: string, setting
     });
 
     if (!response.text) {
-      throw new Error("No response from AI");
+      throw new Error("No response from AI service.");
     }
 
     return JSON.parse(response.text.trim()) as AnalysisResult;
   } catch (error: any) {
     console.error("Gemini analyzeImage failed:", error);
-    if (error.message?.includes("429") || error.message?.includes("RESOURCE_EXHAUSTED")) {
+    if (error.message?.includes("429") || error.message?.includes("RESOURCE_EXHAUSTED") || error.message?.includes("Quota")) {
       throw new Error("The AI service is currently busy or over quota. Please try again in a few minutes.");
     }
     throw new Error(error.message || "Failed to analyze image");

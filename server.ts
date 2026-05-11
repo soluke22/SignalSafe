@@ -12,7 +12,7 @@ async function startServer() {
 
   app.use(express.json({ limit: "10mb" }));
 
-  // API Routes (Add any other backend-only routes here)
+  // Health check
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
   });
