@@ -164,18 +164,20 @@ export default function App() {
     setError(null);
     
     try {
-      const reader = new FileReader();
-      reader.onload = async (event) => {
-        const base64 = (event.target?.result as string).split(',')[1];
-        const res = await analyzeImage(base64, selectedFile.type, settings);
-        setResult(res);
-        saveResult(res);
-        setView('result');
-        if (settings.readAloud) speakResult(res);
-      };
-      reader.readAsDataURL(selectedFile);
-    } catch (err) {
-      setError("Image analysis failed.");
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (event) => resolve(event.target?.result as string);
+        reader.onerror = () => reject(new Error("Failed to read image file."));
+        reader.readAsDataURL(selectedFile);
+      });
+      const base64 = dataUrl.split(',')[1];
+      const res = await analyzeImage(base64, selectedFile.type, settings);
+      setResult(res);
+      saveResult(res);
+      setView('result');
+      if (settings.readAloud) speakResult(res);
+    } catch (err: any) {
+      setError(err?.message || "Analysis failed. Try again or use demo mode.");
     } finally {
       setIsAnalyzing(false);
     }
