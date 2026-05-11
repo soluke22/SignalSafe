@@ -150,8 +150,8 @@ export default function App() {
       saveResult(res);
       setView('result');
       if (settings.readAloud) speakResult(res);
-    } catch (err) {
-      setError("Analysis failed. Please check connection.");
+    } catch (err: any) {
+      setError(err.message || "Analysis failed. Please check connection.");
     } finally {
       setIsAnalyzing(false);
     }
@@ -222,13 +222,22 @@ export default function App() {
     }
   }, [settings.appearance]);
 
+  useEffect(() => {
+    const root = document.documentElement;
+    if (settings.textSize === 'large') {
+      root.style.fontSize = '120%';
+    } else if (settings.textSize === 'xl') {
+      root.style.fontSize = '140%';
+    } else {
+      root.style.fontSize = '100%';
+    }
+  }, [settings.textSize]);
+
   return (
     <div className={`flex h-screen w-full font-sans transition-colors duration-300 overflow-hidden ${
       resolvedTheme === 'dark' ? 'bg-slate-950 text-slate-100' : 'bg-[#F4F7FA] text-slate-900'
     } ${
       settings.highContrast ? 'grayscale contrast-125' : ''
-    } ${
-      settings.textSize === 'large' ? 'text-lg' : settings.textSize === 'xl' ? 'text-xl' : ''
     }`}>
       <Sidebar />
 
@@ -564,7 +573,7 @@ export default function App() {
              <div className="space-y-4">
                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
                    <p className="text-[10px] font-black text-slate-400 uppercase mb-1">AI Engine</p>
-                   <p className="text-xs font-medium text-slate-700">Google Gemini 1.5 Flash (OCR + Logic)</p>
+                   <p className="text-xs font-medium text-slate-700">Google Gemini Flash (Stable)</p>
                 </div>
                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
                    <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Data Schema</p>
